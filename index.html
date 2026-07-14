@@ -371,11 +371,16 @@ HR Secretariat
 HR Unit, Administration Department
 MWSS Regulatory Office`;
 
+    const rating=(t.feedback&&t.feedback.sqd&&t.feedback.sqd.SQD0)||'N/A';
+    const notifyMsg='✅ Ticket Closed\n'+t.id+'\nName: '+t.name+'\nRequest: '+t.reqType+'\nOverall Rating: '+rating+'/5\nProcessed By: '+staffName;
+
     const ccStr=CC_CF.filter(Boolean).join(',');
-    const params=new URLSearchParams({
-      to:t.email, subject, body, cc:ccStr, fromName:FROM_NAME_CF
+    const payload={to:t.email, subject, body, cc:ccStr, fromName:FROM_NAME_CF, notifyMessage:notifyMsg};
+    await fetch(GAS_URL_CF,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight
+      body:JSON.stringify(payload)
     });
-    await fetch(GAS_URL_CF+'?'+params.toString(),{method:'GET',mode:'no-cors'});
   }catch(e){
     console.warn('Closed email failed:',e.message);
   }
@@ -494,7 +499,8 @@ async function submitFeedback(){
     document.getElementById('success-card').style.display='block';
     document.getElementById('success-code').textContent=CURRENT_TICKET.id;
     toast('✓ Feedback submitted. Ticket closed!');
-    // Send closure confirmation email (fire and forget)
+    // Send closure confirmation email + Telegram notification (fire and forget)
+    CURRENT_TICKET.feedback=feedback;
     sendClosedEmail(CURRENT_TICKET);
   }catch(e){
     console.error('Submit error:',e);
