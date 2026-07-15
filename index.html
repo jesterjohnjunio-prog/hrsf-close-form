@@ -347,35 +347,25 @@ const CC_CF       = ['personnel@ro.mwss.gov.ph','christianbernard.marcelino@ro.m
 
 async function sendClosedEmail(t){
   try{
-    const firstName=t.name.split(',')[1]?.trim()||t.name;
     const staffName=t.completedBy||'HR Secretariat';
-    const subject='[MWSS RO HR] Ticket Closed — '+t.id;
-    const body=`Dear ${firstName},
-
-Thank you for submitting your feedback. Your HR service request ticket has been officially closed.
-
-─────────────────────────────────────────
-  TICKET CLOSED
-─────────────────────────────────────────
-  Control Code   :  ${t.id}
-  Request Type   :  ${t.reqType}
-  Closed On      :  ${new Date().toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'})}
-  Processed By   :  ${staffName}
-─────────────────────────────────────────
-
-We appreciate your feedback and hope we were able to serve you well.
-For future requests, you may submit a new ticket at any time.
-
-Regards,
-HR Secretariat
-HR Unit, Administration Department
-MWSS Regulatory Office`;
-
     const rating=(t.feedback&&t.feedback.sqd&&t.feedback.sqd.SQD0)||'N/A';
     const notifyMsg='✅ Ticket Closed\n'+t.id+'\nName: '+t.name+'\nRequest: '+t.reqType+'\nOverall Rating: '+rating+'/5\nProcessed By: '+staffName;
 
-    const ccStr=CC_CF.filter(Boolean).join(',');
-    const payload={to:t.email, subject, body, cc:ccStr, fromName:FROM_NAME_CF, notifyMessage:notifyMsg};
+    const payload={
+      emailType:'ticket_closed',
+      to:t.email,
+      cc:CC_CF.join(','),
+      fromName:FROM_NAME_CF,
+      subject:'[MWSS RO HR] Ticket Closed — '+t.id,
+      data:{
+        ticketId:t.id,
+        name:t.name,
+        reqType:t.reqType,
+        closedOn:new Date().toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'}),
+        processedBy:staffName
+      },
+      notifyMessage:notifyMsg
+    };
     await fetch(GAS_URL_CF,{
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight
