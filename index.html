@@ -147,7 +147,7 @@ textarea{resize:vertical;min-height:80px;line-height:1.65}
   <div class="error-state" id="error-state">
     <div class="ico">⚠️</div>
     <h2>No Ticket Found</h2>
-    <p>This feedback form needs a valid ticket link. Please use the link provided in the completion email sent by HR, or contact the HR Division if you believe this is an error.</p>
+    <p>This feedback form needs a valid ticket link. Please use the link provided in the completion email sent by HR, or contact the HR Unit if you believe this is an error.</p>
   </div>
 
   <div id="form-area" style="display:none">
@@ -419,7 +419,7 @@ async function loadTicket(){
       document.getElementById('error-state').style.display='block';
       document.getElementById('error-state').querySelector('h2').textContent='Ticket Already Closed';
       document.getElementById('error-state').querySelector('p').textContent=
-        `Ticket ${CURRENT_TICKET.id} has already received feedback and is closed. If you believe this is a mistake, please contact the HR Division.`;
+        `Ticket ${CURRENT_TICKET.id} has already received feedback and is closed. If you believe this is a mistake, please contact the HR Unit.`;
       return;
     }
     renderTicketBanner();
@@ -448,7 +448,7 @@ function renderTicketBanner(){
     document.getElementById('tb-files-wrap').style.display='block';
     document.getElementById('tb-files').innerHTML=t.files.map(f=>`<span class="fchip">📎 ${f}</span>`).join('');
   }
-  document.getElementById('cb-name').textContent=t.completedBy||'MWSS RO HR Division';
+  document.getElementById('cb-name').textContent=t.completedBy||'MWSS RO HR Unit';
 }
 
 async function submitFeedback(){
@@ -469,8 +469,27 @@ async function submitFeedback(){
   const btn=document.getElementById('submit-btn');
   btn.disabled=true;document.getElementById('btn-text').style.display='none';document.getElementById('btn-spinner').style.display='block';
 
+  // Final live check right before writing — closes the race condition where
+  // the initial page-load check (loadTicket) could be stale if feedback was
+  // submitted by someone else in the meantime (e.g. same link opened twice,
+  // or a long-idle tab). Never allow overwriting existing feedback.
+  try{
+    const checkRes=await fetch(`${AT_URL}/${CURRENT_TICKET.airtableId}`,{headers:AT_HDR});
+    if(checkRes.ok){
+      const checkData=await checkRes.json();
+      if(checkData.fields&&checkData.fields['Feedback']){
+        toast('⚠ This ticket has already received feedback and is closed.','warn');
+        document.getElementById('form-area').style.display='none';
+        showError('This ticket has already received feedback and is closed. If you believe this is a mistake, please contact the HR Unit.');
+        return;
+      }
+    }
+  }catch(e){
+    console.warn('Pre-submit re-check failed, proceeding anyway:',e.message);
+  }
+
   const feedback={
-    completedBy:CURRENT_TICKET.completedBy||'MWSS RO HR Division',
+    completedBy:CURRENT_TICKET.completedBy||'MWSS RO HR Unit',
     age,sex,custtype,region,cc1,cc2,cc3,sqd,
     suggestion:document.getElementById('ct-suggestion').value,
     submittedAt:new Date().toISOString()
